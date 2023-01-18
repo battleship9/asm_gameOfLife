@@ -1,10 +1,6 @@
 bits 64
 global _start
 
-section .bss
-grid: resw rows * cols
-nextGrid: resw rows * cols
-
 section .data
 rows: equ 3
 cols: equ 3
@@ -13,6 +9,10 @@ nonEmpty: equ 'X'
 errorMsg: db "Error!"
 errorMsgLen: equ $ - errorMsg
 newLine: db 0x0A
+
+section .bss
+grid: resw rows * cols
+nextGrid: resw rows * cols
 
 section .text
 _start:
@@ -44,23 +44,14 @@ countNeighbors:
     ; r11 = col
 
     ; grid[row-1][col]
-    mov rax, cols
+    mov rax, cols               ; rax = number of cells in a full row
     mul r10 - 1
-    add rax, r11            ; [row-1][col]
-    mov rbx, [grid + rax]   ; grid[row-1][col]
-    sub rbx, empty          ; if it's empty gives 0
-    mov rdx, nonEmpty - empty
-    div rdx
-    add rcx, rax
-
-    ; grid[row-1][col-1]
-    mov rax, cols
-    mul r10 - 1
-    add rax, r11
-    mov rbx, [grid + rax]
-    sub rbx, ' '
-    mov rdx, 'X'
-    div rdx
+    add rax, r11                ; [row-1][col]
+    mov rbx, [grid + rax]       ; grid[row-1][col]
+    sub rbx, empty              ; if it's empty it gives 0
+    mov rax, rbx                ; moves to rax for the next step
+    mov rdx, nonEmpty - empty   ; it divides rax with nonEmpty - empty (since we already subtracted empty we have to subtracted empty from nonEmpty (it can result negative numbers so it might be buggy))
+    div rdx                     ; if it wasn't 0 division gives 1
     add rcx, rax
 
     ret
