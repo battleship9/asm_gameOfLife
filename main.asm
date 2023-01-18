@@ -6,8 +6,10 @@ grid: resw rows * cols
 nextGrid: resw rows * cols
 
 section .data
-rows: equ 10
-cols: equ 10
+rows: equ 3
+cols: equ 3
+empty: equ 'a'
+nonEmpty: equ 'X'
 errorMsg: db "Error!"
 errorMsgLen: equ $ - errorMsg
 newLine: db 0x0A
@@ -37,12 +39,29 @@ applyRules:
 
 countNeighbors:
     xor rcx, rcx    ; count
-    xor rax, rax
 
-    pop r10 ; row
-    pop r11 ; col
+    ; r10 = row
+    ; r11 = col
 
-    ; add rax, 
+    ; grid[row-1][col]
+    mov rax, cols
+    mul r10 - 1
+    add rax, r11            ; [row-1][col]
+    mov rbx, [grid + rax]   ; grid[row-1][col]
+    sub rbx, empty          ; if it's empty gives 0
+    mov rdx, nonEmpty - empty
+    div rdx
+    add rcx, rax
+
+    ; grid[row-1][col-1]
+    mov rax, cols
+    mul r10 - 1
+    add rax, r11
+    mov rbx, [grid + rax]
+    sub rbx, ' '
+    mov rdx, 'X'
+    div rdx
+    add rcx, rax
 
     ret
 
@@ -83,14 +102,14 @@ initializeGrids:
 resetGrids:
     mov rcx, rows * cols
     .loopGrid:
-        mov byte [grid + rcx - 1], ' '
+        mov byte [grid + rcx - 1], empty
         dec rcx
         cmp rcx, 0
         jg .loopGrid
 
     mov rcx, rows * cols
     .loopNextGrid:
-        mov byte [nextGrid + rcx - 1], ' '
+        mov byte [nextGrid + rcx - 1], empty
         dec rcx
         cmp rcx, 0
         jg .loopNextGrid
