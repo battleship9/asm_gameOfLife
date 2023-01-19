@@ -4,7 +4,7 @@ global _start
 section .data
 rows: equ 3
 cols: equ 3
-empty: equ 'a'
+empty: equ 'O'
 nonEmpty: equ 'X'
 errorMsg: db "Error!"
 errorMsgLen: equ $ - errorMsg
@@ -13,6 +13,7 @@ newLine: db 0x0A
 section .bss
 grid: resw rows * cols
 nextGrid: resw rows * cols
+tmp: resb 1
 
 section .text
 _start:
@@ -23,6 +24,21 @@ _start:
     call play
 
     call printTable
+
+
+    mov rdi, 1
+    mov rsi, 1
+    call countNeighbors
+
+    add r10, '0'
+    mov [tmp], r10
+
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, tmp
+    mov rdx, 1
+    int 80h
+
 
     jmp exit
 
@@ -38,21 +54,37 @@ applyRules:
     ret
 
 countNeighbors:
-    xor rcx, rcx    ; count
+    xor r10, r10    ; count
+    xor rdx, rdx    ; required for division
 
-    ; r10 = row
-    ; r11 = col
+    ; rdi = row
+    ; rsi = col
 
     ; grid[row-1][col]
     mov rax, cols               ; rax = number of cells in a full row
-    mul r10 - 1
-    add rax, r11                ; [row-1][col]
+    mul rdi - 1
+    add rax, rsi                ; [row-1][col]
     mov rbx, [grid + rax]       ; grid[row-1][col]
     sub rbx, empty              ; if it's empty it gives 0
     mov rax, rbx                ; moves to rax for the next step
-    mov rdx, nonEmpty - empty   ; it divides rax with nonEmpty - empty (since we already subtracted empty we have to subtracted empty from nonEmpty (it can result negative numbers so it might be buggy))
-    div rdx                     ; if it wasn't 0 division gives 1
-    add rcx, rax
+    mov rcx, nonEmpty - empty   ; it divides rax with nonEmpty - empty (since we already subtracted empty we have to subtracted empty from nonEmpty (it can result negative numbers so it might be buggy))
+
+    mov r10, rcx
+    ret
+
+    div rcx                     ; if it wasn't 0 division gives 1
+    add r10, rax
+
+    ; ; grid[row-1][col]
+    ; mov rax, cols
+    ; mul rdi - 1
+    ; add rax, rsi
+    ; mov rbx, [grid + rax]
+    ; sub rbx, empty
+    ; mov rax, rbx
+    ; mov rcx, nonEmpty - empty
+    ; idiv rcx
+    ; add r10, rax
 
     ret
 
@@ -93,7 +125,7 @@ initializeGrids:
 resetGrids:
     mov rcx, rows * cols
     .loopGrid:
-        mov byte [grid + rcx - 1], empty
+        mov byte [grid + rcx - 1], nonEmpty
         dec rcx
         cmp rcx, 0
         jg .loopGrid
