@@ -2,8 +2,8 @@ bits 64
 global _start
 
 section .data
-rows: equ 3
-cols: equ 3
+rows: equ 5
+cols: equ 5
 empty: equ 'O'
 nonEmpty: equ 'X'
 errorMsg: db "Error!"
@@ -11,14 +11,12 @@ errorMsgLen: equ $ - errorMsg
 newLine: db 0x0A
 
 section .bss
-grid: resw rows * cols
-nextGrid: resw rows * cols
-tmp: resb 1
+grid: resb rows * cols
+nextGrid: resb rows * cols
+tmp: resb 8
 
 section .text
 _start:
-    call initializeGrids
-
     call resetGrids
 
     call play
@@ -26,8 +24,8 @@ _start:
     call printTable
 
 
-    mov rdi, 1
-    mov rsi, 1
+    mov rdi, 3
+    mov rsi, 3
     call countNeighbors
 
     add r10, '0'
@@ -36,7 +34,7 @@ _start:
     mov rax, 4
     mov rbx, 1
     mov rcx, tmp
-    mov rdx, 1
+    mov rdx, 8
     int 80h
 
 
@@ -62,63 +60,110 @@ countNeighbors:
 
     ; grid[row-1][col]
     mov rax, cols               ; rax = number of cells in a full row
-    mul rdi - 1
+    mov rbx, rdi                ; row
+    sub rbx, 1                  ; row-1
+    mul rbx
     add rax, rsi                ; [row-1][col]
-    mov rbx, [grid + rax]       ; grid[row-1][col]
+    ; sub rax, 1                ; col - 1
+    mov bl, [grid + rax]        ; grid[row-1][col]
     sub rbx, empty              ; if it's empty it gives 0
     mov rax, rbx                ; moves to rax for the next step
     mov rcx, nonEmpty - empty   ; it divides rax with nonEmpty - empty (since we already subtracted empty we have to subtracted empty from nonEmpty (it can result negative numbers so it might be buggy))
-
-    mov r10, rcx
-    ret
-
     div rcx                     ; if it wasn't 0 division gives 1
+    add r10, rax                ; increments the counter
+
+    ; grid[row-1][col-1]
+    mov rax, cols
+    mov rbx, rdi
+    sub rbx, 1
+    mul rbx
+    add rax, rsi
+    sub rax, 1
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
     add r10, rax
 
-    ; ; grid[row-1][col]
-    ; mov rax, cols
-    ; mul rdi - 1
-    ; add rax, rsi
-    ; mov rbx, [grid + rax]
-    ; sub rbx, empty
-    ; mov rax, rbx
-    ; mov rcx, nonEmpty - empty
-    ; idiv rcx
-    ; add r10, rax
+    ; grid[row-1][col+1]
+    mov rax, cols
+    mov rbx, rdi
+    sub rbx, 1
+    mul rbx
+    add rax, rsi
+    add rax, 1
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
+    add r10, rax
 
-    ret
+    ; grid[row][col-1]
+    mov rax, cols
+    mul rdi
+    add rax, rsi
+    sub rax, 1
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
+    add r10, rax
 
-initializeGrids:
-    ; allocate memory for grid
-    mov rax, 45 ; sys_brk
-    int 80h
+    ; grid[row][col+1]
+    mov rax, cols
+    mul rdi
+    add rax, rsi
+    add rax, 1
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
+    add r10, rax
 
-    mov rax, rows * cols
-    mov rbx, rax
-    mov rax, 45
-    int 80h
+    ; grid[row+1][col]
+    mov rax, cols
+    mov rbx, rdi
+    add rbx, 1
+    mul rbx
+    add rax, rsi
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
+    add r10, rax
 
-    cmp rax, 0
-    jl error
+    ; grid[row+1][col-1]
+    mov rax, cols
+    mov rbx, rdi
+    add rbx, 1
+    mul rbx
+    add rax, rsi
+    sub rax, 1
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
+    add r10, rax
 
-    mov [grid], rax
-    sub word [grid], rows * cols
-
-
-    ; allocate memory for nextGrid
-    mov rax, 45 ; sys_brk
-    int 80h
-
-    mov rax, rows * cols
-    mov rbx, rax
-    mov rax, 45
-    int 80h
-
-    cmp rax, 0
-    jl error
-
-    mov [nextGrid], rax
-    sub word [nextGrid], rows * cols
+    ; grid[row+1][col+1]
+    mov rax, cols
+    mov rbx, rdi
+    add rbx, 1
+    mul rbx
+    add rax, rsi
+    add rax, 1
+    mov bl, [grid + rax]
+    sub rbx, empty
+    mov rax, rbx
+    mov rcx, nonEmpty - empty
+    div rcx
+    add r10, rax
 
     ret
 
