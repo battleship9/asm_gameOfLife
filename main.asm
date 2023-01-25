@@ -13,7 +13,7 @@ newLine: db 0x0A
 section .bss
 grid: resb rows * cols
 nextGrid: resb rows * cols
-tmp: resb 8
+tmp: resb 1
 
 section .text
 _start:
@@ -22,20 +22,6 @@ _start:
     call play
 
     call printTable
-
-
-    mov rdi, 3
-    mov rsi, 3
-    call countNeighbors
-
-    add r10, '0'
-    mov [tmp], r10
-
-    mov rax, 4
-    mov rbx, 1
-    mov rcx, tmp
-    mov rdx, 8
-    int 80h
 
 
     jmp exit
@@ -52,125 +38,90 @@ applyRules:
     ret
 
 countNeighbors:
-    xor r10, r10    ; count
-    xor rdx, rdx    ; required for division
+
+    ; for(i=0; i<9; i++) {
+    ;     dx = i/3 - 1
+    ;     dy = i%3 - 1
+    ;     cpos = {x:pos.x+dx, y:pos.y+dy}
+    ;     if(dx==0&&dy==0) continue
+    ;     if(!inbounds(cpos) continue
+    ;     if(!isset(cpos)) continue
+    ;     cnt++
+    ; }
 
     ; rdi = row
     ; rsi = col
 
-    ; grid[row-1][col]
-    mov rax, cols               ; rax = number of cells in a full row
-    mov rbx, rdi                ; row
-    sub rbx, 1                  ; row-1
-    mul rbx
-    add rax, rsi                ; [row-1][col]
-    ; sub rax, 1                ; col - 1
-    mov bl, [grid + rax]        ; grid[row-1][col]
-    sub rbx, empty              ; if it's empty it gives 0
-    mov rax, rbx                ; moves to rax for the next step
-    mov rcx, nonEmpty - empty   ; it divides rax with nonEmpty - empty (since we already subtracted empty we have to subtracted empty from nonEmpty (it can result negative numbers so it might be buggy))
-    div rcx                     ; if it wasn't 0 division gives 1
-    add r10, rax                ; increments the counter
+    xor r10, r10    ; cnt = 0
+    xor rcx, rcx    ; i = 0
 
-    ; grid[row-1][col-1]
+    .loop:
+    xor rdx, rdx    ; required for division
+
+    mov rax, rcx
+    mov rbx, 3
+    div rbx
+    mov r11, rax
+    sub r11, 1      ; dx
+    mov r12, rdx
+    sub r12, 1      ; dy
+
     mov rax, cols
     mov rbx, rdi
-    sub rbx, 1
-    mul rbx
-    add rax, rsi
-    sub rax, 1
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
+    add rbx, r12
+    mul rbx         ; cpos y
 
-    ; grid[row-1][col+1]
-    mov rax, cols
-    mov rbx, rdi
-    sub rbx, 1
-    mul rbx
-    add rax, rsi
-    add rax, 1
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
+    mov r13, rsi
+    add r13, r11    ; cpos x
 
-    ; grid[row][col-1]
-    mov rax, cols
-    mul rdi
-    add rax, rsi
-    sub rax, 1
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
 
-    ; grid[row][col+1]
-    mov rax, cols
-    mul rdi
-    add rax, rsi
-    add rax, 1
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
+    inc rcx         ; i++
 
-    ; grid[row+1][col]
-    mov rax, cols
-    mov rbx, rdi
-    add rbx, 1
-    mul rbx
-    add rax, rsi
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
+    cmp rcx, 9      ; make sure it won't run forever
+    jg .end
 
-    ; grid[row+1][col-1]
-    mov rax, cols
-    mov rbx, rdi
-    add rbx, 1
-    mul rbx
-    add rax, rsi
-    sub rax, 1
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
 
-    ; grid[row+1][col+1]
-    mov rax, cols
-    mov rbx, rdi
-    add rbx, 1
-    mul rbx
-    add rax, rsi
-    add rax, 1
-    mov bl, [grid + rax]
-    sub rbx, empty
-    mov rax, rbx
-    mov rcx, nonEmpty - empty
-    div rcx
-    add r10, rax
+    cmp r13, 0
+    jl .loop
 
+    cmp r13, cols
+    jge .loop
+
+
+    add rax, r13    ; cpos
+
+
+    cmp r11, 0      ; dx == 0
+    jne .skip
+    cmp r12, 0      ; dy == 0
+    je .loop
+
+    .skip:
+
+
+    cmp rax, 0      ; inbounds
+    jl .loop
+
+    cmp rax, rows * cols    ; inbounds
+    jge .loop
+
+    mov bl, [grid + rax]   ; is alive  ; todo fix
+    cmp bl, empty
+    je .loop
+
+
+    inc r10         ; cnt++
+
+    cmp rcx, 9      ; i < 9
+    jl .loop
+
+    .end:
     ret
 
 resetGrids:
     mov rcx, rows * cols
     .loopGrid:
-        mov byte [grid + rcx - 1], nonEmpty
+        mov byte [grid + rcx - 1], empty
         dec rcx
         cmp rcx, 0
         jg .loopGrid
