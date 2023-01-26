@@ -2,39 +2,124 @@ bits 64
 global _start
 
 section .data
-rows: equ 5
-cols: equ 5
-empty: equ 'O'
-nonEmpty: equ 'X'
+rows: equ 30
+cols: equ 30
+dead: equ '.'
+alive: equ 'X'
 errorMsg: db "Error!"
 errorMsgLen: equ $ - errorMsg
 newLine: db 0x0A
+grid: db '.X..............................X...........................XXX............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................XXX......................................................................................'
+nextGrid: times rows * cols db '.'
 
 section .bss
-grid: resb rows * cols
-nextGrid: resb rows * cols
+; grid: resb rows * cols
+; nextGrid: resb rows * cols
 tmp: resb 1
 
 section .text
 _start:
-    call resetGrids
-
     call play
-
-    call printTable
-
 
     jmp exit
 
 play:
-    call computeNextGen
+    times 30 call computeNextGen
+    ; call computeNextGen
+    ; jmp play
     ret
 
 computeNextGen:
+    xor r10, r10
+    xor r11, r11
+
+    .loop1:
+
+        .loop2:
+        call applyRules
+
+        inc r11
+        cmp r11, cols
+        jl .loop2
+
+    mov r11, 0
+    inc r10
+    cmp r10, rows
+    jl .loop1
+
+    call copyAndResetGrid
+
+    call printTable
 
     ret
 
 applyRules:
+    push r10
+    push r11
+
+    mov rdi, r10
+    mov rsi, r11
+
+    call countNeighbors
+
+    mov rax, cols
+    mov rbx, rdi
+    mul rbx
+    add rax, rsi
+
+    mov cl, [grid + rax]
+    cmp cl, alive
+    jne .else
+        cmp r10, 2
+        jl .do1
+
+        cmp r10, 2
+        je .do2
+        cmp r10, 3
+        je .do2
+
+        cmp r10, 3
+        jg .do3
+
+        jmp .skip
+
+    .else:
+        cmp r10, 3
+        jne .skip
+
+        mov [nextGrid + rax], byte alive
+        jmp .skip
+
+    .do1:
+    mov [nextGrid + rax], byte dead
+    jmp .skip
+
+    .do2:
+    mov [nextGrid + rax], byte alive
+    jmp .skip
+
+    .do3:
+    mov [nextGrid + rax], byte dead
+
+    .skip:
+    .end:
+
+    pop r11
+    pop r10
+    ret
+
+copyAndResetGrid:
+    mov rcx, rows * cols
+    .loop:
+        dec rcx
+
+        mov al, [nextGrid + rcx]
+        mov byte [grid + rcx], al
+        mov byte [nextGrid + rcx], dead
+
+        cmp rcx, 0
+        jg .loop
+
     ret
 
 countNeighbors:
@@ -51,6 +136,9 @@ countNeighbors:
 
     ; rdi = row
     ; rsi = col
+
+    push rbx
+    push rcx
 
     xor r10, r10    ; cnt = 0
     xor rcx, rcx    ; i = 0
@@ -106,7 +194,7 @@ countNeighbors:
     jge .loop
 
     mov bl, [grid + rax]   ; is alive  ; todo fix
-    cmp bl, empty
+    cmp bl, dead
     je .loop
 
 
@@ -116,26 +204,25 @@ countNeighbors:
     jl .loop
 
     .end:
+    pop rcx
+    pop rbx
     ret
 
 resetGrids:
     mov rcx, rows * cols
-    .loopGrid:
-        mov byte [grid + rcx - 1], empty
+    .loop:
         dec rcx
-        cmp rcx, 0
-        jg .loopGrid
+        mov byte [grid + rcx], dead
+        mov byte [nextGrid + rcx], dead
 
-    mov rcx, rows * cols
-    .loopNextGrid:
-        mov byte [nextGrid + rcx - 1], empty
-        dec rcx
         cmp rcx, 0
-        jg .loopNextGrid
+        jg .loop
 
     ret
 
 printTable:
+    push r10
+
     xor r10, r10    ; rows counter
 
     .loop:
@@ -160,6 +247,13 @@ printTable:
         cmp r10, rows
         jl .loop
 
+    mov rax, 4
+    mov rbx, 1
+    mov rcx, newLine
+    mov rdx, 1
+    int 80h
+
+    pop r10
     ret
 
 error:
