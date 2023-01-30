@@ -1,18 +1,6 @@
 bits 64
 
-section .data
-rows: equ 30
-cols: equ 30
-dead: equ '.'
-alive: equ 'X'
-newLine: db 0x0A
-
-section .bss
-grid: resb rows * cols
-nextGrid: resb rows * cols
-
 section .text
-
 printTable:
     push rax
     push rbx
