@@ -5,12 +5,15 @@ section .data
 file: db "./grid.txt", 0
 errorMsg: db "Error!"
 errorMsgLen: equ $ - errorMsg
-rows: equ 30
-cols: equ 50
+rows: equ 10
+cols: equ 10
 dead: equ '.'
 alive: equ 'X'
 newLine: db 0x0A
 nextGrid: times rows * cols db '.'
+timeval:
+    tv_sec  dd 1
+    tv_usec dd 0
 
 section .bss
 fileBuffer: resb cols * rows + rows - 1
@@ -49,6 +52,10 @@ _start:
     cmp r11, cols * rows
     jl .loop
 
+
+    call printTable
+    call waitTimeVal
+
     call play
 
     jmp exit
@@ -56,7 +63,15 @@ _start:
 play:
     ; times 10 call computeNextGen
     call computeNextGen
+    call waitTimeVal
     jmp play
+    ret
+
+waitTimeVal:
+    mov rax, 162
+    mov rbx, timeval
+    mov rcx, 0
+    int 80h
     ret
 
 error:
